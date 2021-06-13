@@ -29,10 +29,10 @@ const jdCookieNode = $.isNode() ? require('./jdCookie.js') : '';
 let appId = '1EFRXxg' , homeDataFunPrefix = 'interact_template', collectScoreFunPrefix = 'harmony', message = ''
 let lotteryResultFunPrefix = homeDataFunPrefix, browseTime = 6
 const inviteCodes = [
-  'T0225KkcRU8Y9FaEIh_3wPAKcQCjVQmoaT5kRrbA',
-  'T0225KkcRU8Y9FaEIh_3wPAKcQCjVQmoaT5kRrbA'
+  '',
+  '',
 ];
-const randomCount = $.isNode() ? 0 : 5;
+const randomCount = $.isNode() ? 20 : 5;
 const notify = $.isNode() ? require('./sendNotify') : '';
 let merge = {}
 //IOS等用户直接用NobyDa的jd cookie
@@ -43,7 +43,13 @@ if ($.isNode()) {
   })
   if (process.env.JD_DEBUG && process.env.JD_DEBUG === 'false') console.log = () => {};
 } else {
-  cookiesArr = [$.getdata('CookieJD'), $.getdata('CookieJD2'), ...jsonParse($.getdata('CookiesJD') || "[]").map(item => item.cookie)].filter(item => !!item);
+  let cookiesData = $.getdata('CookiesJD') || "[]";
+  cookiesData = jsonParse(cookiesData);
+  cookiesArr = cookiesData.map(item => item.cookie);
+  cookiesArr.reverse();
+  cookiesArr.push(...[$.getdata('CookieJD2'), $.getdata('CookieJD')]);
+  cookiesArr.reverse();
+  cookiesArr = cookiesArr.filter(item => item !== "" && item !== null && item !== undefined);
 }
 
 const JD_API_HOST = `https://api.m.jd.com/client.action`;
@@ -114,7 +120,7 @@ function interact_template_getHomeData(timeout = 0) {
           for (let i = 0;i < data.data.result.taskVos.length;i ++) {
             console.log("\n" + data.data.result.taskVos[i].taskType + '-' + data.data.result.taskVos[i].taskName  + '-' + (data.data.result.taskVos[i].status === 1 ? `已完成${data.data.result.taskVos[i].times}-未完成${data.data.result.taskVos[i].maxTimes}` : "全部已完成"))
             //签到
-            if (data.data.result.taskVos[i].taskName === '邀人助力任务') {
+            if (data.data.result.taskVos[i].taskName === '邀请好友助力') {
               console.log(`您的好友助力码为:${data.data.result.taskVos[i].assistTaskDetailVo.taskToken}`)
               for (let code of $.newShareCodes) {
                 if (!code) continue
@@ -256,7 +262,7 @@ function interact_template_getLotteryResult(taskId,timeout = 0) {
 function showMsg() {
   message += `任务已完成，本次运行获得京豆${$.beans}`
   return new Promise(resolve => {
-    if ($.beans) // $.msg($.name, '', `【京东账号${$.index}】${$.nickName}\n${message}`);
+    if ($.beans) $.msg($.name, '', `【京东账号${$.index}】${$.nickName}\n${message}`);
     $.log(`【京东账号${$.index}】${$.nickName}\n${message}`);
     resolve()
   })
@@ -313,17 +319,19 @@ function shareCodesFormat() {
 function readShareCode() {
   console.log(`开始`)
   return new Promise(async resolve => {
-    $.get({
-      url: `http://jd.turinglabs.net/api/v2/jd/sgmh/read/${randomCount}/`,
-      'timeout': 10000
-    }, (err, resp, data) => {
+    $.get({url: "https://gitee.com/Soundantony/RandomShareCode/raw/master/JD_SGMH.json",headers:{
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1 Edg/87.0.4280.88"
+      }}, async (err, resp, data) => {
       try {
         if (err) {
           console.log(`${JSON.stringify(err)}`)
-          console.log(`${$.name} API请求失败，请检查网路重试`)
+          console.log(`${$.name} API请求失败，将切换为备用API`)
+          console.log(`随机取助力码放到您固定的互助码后面(不影响已有固定互助)`)
+          $.get({url: `https://raw.githubusercontent.com/shuyeshuye/RandomShareCode/main/JD_SGMH.json`, 'timeout': 10000},(err, resp, data)=>{
+          data = JSON.parse(data);})
         } else {
           if (data) {
-            console.log(`随机取${randomCount}个码放到您固定的互助码后面(不影响已有固定互助)`)
+            console.log(`随机取助力码放到您固定的互助码后面(不影响已有固定互助)`)
             data = JSON.parse(data);
           }
         }
@@ -333,7 +341,7 @@ function readShareCode() {
         resolve(data);
       }
     })
-    await $.wait(2000);
+    await $.wait(4000);
     resolve()
   })
 }
@@ -365,7 +373,7 @@ function TotalBean() {
               return
             }
             if (data['retcode'] === 0) {
-              $.nickName = (data['base'] && data['base'].nickname) || $.UserName;
+              $.nickName = data['base'].nickname;
             } else {
               $.nickName = $.UserName
             }
